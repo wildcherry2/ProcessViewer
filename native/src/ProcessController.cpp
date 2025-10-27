@@ -7,7 +7,7 @@
 #include <atomic>
 #include <vector>
 #include <numeric>
-#include <concurrentqueue/moodycamel/concurrentqueue.h>
+#include "concurrentqueue.h"
 #include "include/base/cef_bind.h"
 #include "include/base/cef_callback.h"
 #include "include/wrapper/cef_closure_task.h"

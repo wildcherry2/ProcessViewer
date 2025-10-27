@@ -172,12 +172,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 )
 
 
-# -------------------------------------------------------------------
-# Debugger working directory (Visual Studio)
-# -------------------------------------------------------------------
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-)
+
 
 # -------------------------------------------------------------------
 # UAC / privileged execution:
@@ -218,6 +213,13 @@ endif()
 # Put built binary next to the copied resources and DLLs
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
+)
+
+# -------------------------------------------------------------------
+# Debugger working directory (Visual Studio)
+# -------------------------------------------------------------------
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
 )
 
 # -------------------------------------------------------------------
