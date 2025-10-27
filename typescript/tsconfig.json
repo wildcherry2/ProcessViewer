@@ -1,0 +1,14 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "ES2021",
+    "strict": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true
+  },
+   "include": ["src/**/*"]
+}
