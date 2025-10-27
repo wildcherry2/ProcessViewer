@@ -82,12 +82,14 @@ struct ProcessController::Impl {
         }
         if(update_thread.request_stop()) {
             update_thread.join();
-        }/*
+        }
         ctx = nullptr;
         table = nullptr;
-        update_fn = nullptr;*/
+        update_fn = nullptr;
         _RDEBUG("[ProcessController] Stopped monitoring threads!");
     }
+
+    bool systemPrefersDarkMode() { return platform->systemPrefersDarkMode(); }
 
 private:
     std::function<void(std::stop_token)> update_callback = [this](std::stop_token stop_token) {
@@ -315,6 +317,11 @@ private:
                     out->SetValue("data", js_data, V8_PROPERTY_ATTRIBUTE_NONE);
                     break;
                 }
+                case EProcessInfoEvent::PROCESS_DARKMODECHANGE: {
+                    auto update_data = std::reinterpret_pointer_cast<bool>(update.data);
+                    out->SetValue("data", CefV8Value::CreateBool(*update_data), V8_PROPERTY_ATTRIBUTE_NONE);
+                    break;
+                }
                 default: {
                     _RERR("[ProcessController] Unsupported event attempted to pass to js: ", update.event);
                     continue;
@@ -404,6 +411,10 @@ ProcessController::ProcessController() : pimpl(std::make_unique<Impl>()) {}
 void ProcessController::startMonitoring(CefRefPtr<CefV8Context> context) { return pimpl->startMonitoring(context); }
 
 void ProcessController::stopMonitoring() { return pimpl->stopMonitoring(); }
+
+bool ProcessController::systemPrefersDarkMode() {
+    return pimpl->systemPrefersDarkMode();
+}
 
 ProcessController::~ProcessController() { pimpl->stopMonitoring(); }
 

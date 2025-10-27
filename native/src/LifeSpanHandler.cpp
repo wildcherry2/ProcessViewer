@@ -9,6 +9,6 @@ void LifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
 
 void LifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
-    //if(--browser_count == 0) 
+    if(--browser_count == 0) 
         CefQuitMessageLoop(); 
 }

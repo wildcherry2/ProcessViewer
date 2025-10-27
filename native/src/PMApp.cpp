@@ -3,6 +3,7 @@
 #include "Defines.h"
 #include "SchemaHandlerFactory.h"
 #include "ProcessController.h"
+#include "Logger.h"
 
 CefRefPtr<CefBrowserProcessHandler> PMApp::GetBrowserProcessHandler() {
     return this;
@@ -44,3 +45,35 @@ void PMApp::OnBeforeCommandLineProcessing(const CefString& process_type, CefRefP
         // Optional: force WebGL or accelerated 2D canvas
         //command_line->AppendSwitch("ignore-gpu-blacklist");
     }
+
+CefRefPtr<CefLoadHandler> PMApp::GetLoadHandler() {
+    return this;
+}
+
+void PMApp::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode) {
+    CEF_REQUIRE_RENDERER_THREAD();
+    if(!frame->IsMain()) return;
+    auto ctx = frame->GetV8Context();
+    if(!ctx->IsValid()) {
+        _RERR("Couldn't set dark mode after load end!");
+        return;
+    }
+
+    if(!ProcessController::getInstance()->systemPrefersDarkMode()) return;
+
+    if(!ctx->Enter()) {
+        _RERR("Failed to enter context in load end!");
+        return;
+    }
+    auto global = ctx->GetGlobal();
+    if(!global->IsValid()) {
+        _RERR("Couldn't get global object in load end!");
+        ctx->Exit();
+        return;
+    }
+    auto html = global->GetValue("document")->GetValue("documentElement");
+    auto setAttribute = html->GetValue("setAttribute");
+    setAttribute->ExecuteFunction(html, { CefV8Value::CreateString("dark-mode"), CefV8Value::CreateString("") });
+
+    ctx->Exit();
+}

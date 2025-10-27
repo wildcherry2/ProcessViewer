@@ -248,6 +248,24 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
         return result;
     }
 
+    bool systemPrefersDarkMode() const override {
+        HKEY dark_mode_key;
+        if(RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_READ, &dark_mode_key) != ERROR_SUCCESS) {
+            _RWARN("[ProcessEventDispatcherImplWin32] Dark mode registry key not found, returning light mode!");
+            return false;
+        }
+
+        DWORD light_mode_value = 0;
+        static DWORD size = sizeof(DWORD);
+        if(auto result = RegQueryValueExW(dark_mode_key, L"AppsUseLightTheme", nullptr, nullptr, reinterpret_cast<LPBYTE>(&light_mode_value), &size); result != ERROR_SUCCESS) {
+            _RWARN("[ProcessEventDispatcherImplWin32] Failed to query AppsUseLightTheme, returning light mode! Result = ", result);
+            RegCloseKey(dark_mode_key);
+            return false;
+        }
+        RegCloseKey(dark_mode_key);
+        return light_mode_value == 0;
+    }
+
     std::filesystem::path getExeFilePath(unsigned long pid) const {
         HANDLE handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
         if (handle == INVALID_HANDLE_VALUE) return L"";

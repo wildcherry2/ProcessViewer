@@ -56,6 +56,10 @@ export class ProcessTable extends LitElement {
                     dirty = true;
                     break;
                 }
+                case ProcessInfoEvent.PROCESS_DARKMODECHANGE: {
+                    document.documentElement.toggleAttribute("dark-mode", update.data);
+                    break;
+                }
                 default: {
                     // @ts-expect-error
                     LOG(`Unhandled event type: ${update.event}`);

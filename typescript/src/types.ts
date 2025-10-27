@@ -6,7 +6,8 @@ export const enum ProcessInfoEvent {
     PROCESS_UNHIDDEN,// data is PID[]
     PROCESS_SHOWALL,// data is undefined
     PROCESS_HIDEALL,// data is undefined
-    PROCESS_TITLEUPDATE// data is ProcessInfoTitleUpdate
+    PROCESS_TITLEUPDATE,// data is ProcessInfoTitleUpdate,
+    PROCESS_DARKMODECHANGE// data is boolean
 }
 
 export interface ProcessInfoTitleUpdate {
@@ -22,6 +23,7 @@ export interface ProcessInfoEventMap {
     [ProcessInfoEvent.PROCESS_SHOWALL]: undefined;
     [ProcessInfoEvent.PROCESS_HIDEALL]: undefined;
     [ProcessInfoEvent.PROCESS_TITLEUPDATE]: ProcessInfoTitleUpdate;
+    [ProcessInfoEvent.PROCESS_DARKMODECHANGE]: boolean;
 }
 
 export type DataFor<T extends ProcessInfoEvent> = ProcessInfoEventMap[T];

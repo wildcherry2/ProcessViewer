@@ -6,6 +6,7 @@ class ProcessController {
 public:
     void startMonitoring(CefRefPtr<CefV8Context> context);
     void stopMonitoring();
+    bool systemPrefersDarkMode();
     ~ProcessController();
     static std::shared_ptr<ProcessController> getInstance();
 private:

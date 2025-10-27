@@ -6,7 +6,7 @@
 
 #include "PMClient.h"
 
-class PMApp : public CefApp, public CefBrowserProcessHandler, public CefRenderProcessHandler {
+class PMApp : public CefApp, public CefBrowserProcessHandler, public CefRenderProcessHandler, public CefLoadHandler {
 public:
     CefRefPtr<CefBrowserProcessHandler> GetBrowserProcessHandler() override;
     CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override;
@@ -19,6 +19,10 @@ public:
     void OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) override;
     void OnBeforeCommandLineProcessing(const CefString& process_type,
                                        CefRefPtr<CefCommandLine> command_line) override;
+    CefRefPtr<CefLoadHandler> GetLoadHandler() override;
+    void OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefFrame> frame,
+                         int httpStatusCode) override;
 private:
     IMPLEMENT_REFCOUNTING(PMApp);
 };

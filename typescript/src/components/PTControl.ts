@@ -10,10 +10,6 @@ import type { NativeButton } from "./NativeButton";
 
 @customElement('pt-control')
 export class PTControl extends LitElement {
-
-    @property({attribute: 'dll-text'})
-    accessor dll_text: string = "";
-
     connectedCallback(): void {
         super.connectedCallback();
         document.addEventListener('pt-selection-changed', this._onSelectionChanged);
@@ -22,11 +18,6 @@ export class PTControl extends LitElement {
     disconnectedCallback(): void {
         super.disconnectedCallback();
         document.removeEventListener('pt-selection-changed', this._onSelectionChanged);
-    }
-
-    protected override firstUpdated(_changedProperties: PropertyValues): void {
-        super.firstUpdated(_changedProperties);
-        window.WebAwesomeDarkModeUpdater.addElement(this._checkbox_attach);
     }
 
     protected override render() { //might need to normalize button lengths, and hide end task if nothing is selected, and figure out what to do with dll text
@@ -40,20 +31,8 @@ export class PTControl extends LitElement {
         `
     }
 
-    @query('#attach_checkbox', true)
-    private accessor _checkbox_attach!: WaCheckbox;
-
     @query('#end_process_btn', true)
     accessor _btn_end_process!: NativeButton;
-
-    private _onBrowseDLL(_event: MouseEvent) {
-        NProcessManipulator.chooseDLLFile();
-    }
-
-    private _onInject(_event: MouseEvent) {
-        if(!this._selection) return;
-        NProcessManipulator.doInject(this._selection.pid, this._selection.name, !!this._checkbox_attach.checked);
-    }
 
     private _onEndTask(_event: MouseEvent) {
         if(!this._selection) return;

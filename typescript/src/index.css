@@ -45,40 +45,38 @@
   --control-spacing: 8px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Fluent Design tokens (dark mode) */
-    --accent-color: #3aa0ff;
-    --accent-hover: #2893e0;
-    --accent-pressed: #1675bd;
-    --neutral-bg: #1f1f1f;
-    --neutral-bg-alt: #2b2b2b;
-    --neutral-border: #3a3a3a;
-    --neutral-hover: #2e3a46;
-    --neutral-button-bg: var(--neutral-bg-alt);
-    --neutral-button-hover: var(--neutral-border);
-    --neutral-button-pressed: #4a4a4a;
-    --text-primary: #f3f3f3;
-    --neutral-button-text: var(--text-primary);
-    --text-secondary: #c8c8c8;
-    --row-selected-bg: rgba(58, 160, 255, 0.2); /* slightly stronger in dark mode */
-    --row-selected-bg-hover: rgba(58, 160, 255, 0.25);
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+:root[dark-mode] {
+  /* Fluent Design tokens (dark mode) */
+  --accent-color: #3aa0ff;
+  --accent-hover: #2893e0;
+  --accent-pressed: #1675bd;
+  --neutral-bg: #1f1f1f;
+  --neutral-bg-alt: #2b2b2b;
+  --neutral-border: #3a3a3a;
+  --neutral-hover: #2e3a46;
+  --neutral-button-bg: var(--neutral-bg-alt);
+  --neutral-button-hover: var(--neutral-border);
+  --neutral-button-pressed: #4a4a4a;
+  --text-primary: #f3f3f3;
+  --neutral-button-text: var(--text-primary);
+  --text-secondary: #c8c8c8;
+  --row-selected-bg: rgba(58, 160, 255, 0.2); /* slightly stronger in dark mode */
+  --row-selected-bg-hover: rgba(58, 160, 255, 0.25);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 
-    --check-unchecked-border: 1px solid #555555;
-    --check-unchecked-bg: var(--neutral-bg-alt);
-    --check-unchecked-hover-border: 1px solid #555555;
-    --check-unchecked-hover-bg: #333333;
-    --check-checked-bg: var(--accent-color);
-    --check-checked-border: 1px solid var(--accent-color);
-    --check-checked-icon-color: #000000;
-    --check-focus-visible: 2px solid var(--accent-color);
-    --check-focus-offset: 2px;
-    
-    --main-bg: #202020;
+  --check-unchecked-border: 1px solid #555555;
+  --check-unchecked-bg: var(--neutral-bg-alt);
+  --check-unchecked-hover-border: 1px solid #555555;
+  --check-unchecked-hover-bg: #333333;
+  --check-checked-bg: var(--accent-color);
+  --check-checked-border: 1px solid var(--accent-color);
+  --check-checked-icon-color: #000000;
+  --check-focus-visible: 2px solid var(--accent-color);
+  --check-focus-offset: 2px;
+  
+  --main-bg: #202020;
 
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 
 body {
