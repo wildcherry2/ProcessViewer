@@ -313,7 +313,7 @@ private:
                     auto update_data = std::reinterpret_pointer_cast<ProcessTitleUpdateData>(update.data);
                     auto js_data = CefV8Value::CreateObject(nullptr, nullptr);
                     js_data->SetValue("pid", CefV8Value::CreateUInt(update_data->pid), V8_PROPERTY_ATTRIBUTE_NONE);
-                    js_data->SetValue("title", CefV8Value::CreateString(update_data->title ? *(update_data->title) : L""), V8_PROPERTY_ATTRIBUTE_NONE);
+                    js_data->SetValue("title", CefV8Value::CreateString(update_data->title ? *(update_data->title) : StringPrefix""), V8_PROPERTY_ATTRIBUTE_NONE);
                     out->SetValue("data", js_data, V8_PROPERTY_ATTRIBUTE_NONE);
                     break;
                 }

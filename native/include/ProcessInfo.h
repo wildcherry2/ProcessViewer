@@ -3,14 +3,22 @@
 #include <memory>
 #include "include/internal/cef_string.h"
 
+#ifdef _WIN32 
+    using StringType = std::wstring;
+#define StringPrefix = L
+#else
+    using StringType = std::string;
+#define StringPrefix
+#endif
+
 struct ProcessInfo {
-    std::wstring exe_name;                          // [PLATFORM-SUPPLIED] Name of executable file
-    std::wstring exe_path;                          // [PLATFORM-SUPPLIED] Path of executable file
+    StringType exe_name;                          // [PLATFORM-SUPPLIED] Name of executable file
+    StringType exe_path;                          // [PLATFORM-SUPPLIED] Path of executable file
     unsigned long pid = 0;                          // [PLATFORM-SUPPLIED] PID of process
     bool hidden = false;                            // Whether or not this process is currently filtered out in the ui
     bool is_top_level_window = false;               // [PLATFORM-SUPPLIED] Whether this process is a top-level window
     std::shared_ptr<const CefString> exe_icon_b64;  // [PLATFORM-SUPPLIED] A pointer to the base64 encoded PNG icon of the process, to be set in a <img> src attribute, if it has one
-    std::shared_ptr<std::wstring> title;            // [PLATFORM-SUPPLIED] A pointer to the title of the window, iff the process is_top_level_window
+    std::shared_ptr<StringType> title;            // [PLATFORM-SUPPLIED] A pointer to the title of the window, iff the process is_top_level_window
 };
 
 enum EProcessInfoEvent {
@@ -33,7 +41,7 @@ struct ProcessInfoUpdate {
 };
 
 struct ProcessTitleUpdateData {
-    std::shared_ptr<std::wstring> title;
+    std::shared_ptr<StringType> title;
     unsigned long pid;
     unsigned long time;
 };

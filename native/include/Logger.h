@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <sstream>
-#include "include/base/cef_logging.h"
 
 #ifndef _RLOGGER
 #define _RLOGGER
