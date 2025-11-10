@@ -6,6 +6,7 @@
 
 IconCache::IconCache(std::shared_ptr<IProcessEventDispatcherImplPlatform> platform) : platform(platform) {}
 
+// Acts as a cache for executable icons. Uses IProcessEventDispatcherImplPlatform::getExeIcon and encodes it in base64 when the cache misses.
 void IconCache::setIconInProcess(std::shared_ptr<ProcessInfo> process) {
     auto& path = process->exe_path;
     if(path.empty()) {

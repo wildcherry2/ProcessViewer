@@ -17,8 +17,6 @@ public:
 
     void OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) override;
     void OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) override;
-    void OnBeforeCommandLineProcessing(const CefString& process_type,
-                                       CefRefPtr<CefCommandLine> command_line) override;
     CefRefPtr<CefLoadHandler> GetLoadHandler() override;
     void OnLoadEnd(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame,

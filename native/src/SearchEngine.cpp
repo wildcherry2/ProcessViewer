@@ -4,6 +4,7 @@
 #include <cwctype>
 #include "Logger.h"
 
+// Helper to lowercase a string
 std::wstring toLowerCase(const std::wstring& string) {
     std::wstring lower;
     lower.resize(string.size());
@@ -11,12 +12,14 @@ std::wstring toLowerCase(const std::wstring& string) {
     return lower;
 }
 
+// adds a process to the search engine's internal map, applying the current filters and hiding it if needed
 void SearchEngine::addProcess(std::shared_ptr<ProcessInfo> process) {
     process->hidden = shouldHideProcess(process, current_filters);
     auto& map = process->hidden ? hidden : visible;
     map[process->pid] = process;
 }
 
+// removes a process from the search engine's internal map
 void SearchEngine::removeProcess(const unsigned long pid) {
     auto* target_map = visible.size() > hidden.size() ? &visible : &hidden;
     if(!target_map->erase(pid)) {
@@ -25,18 +28,22 @@ void SearchEngine::removeProcess(const unsigned long pid) {
     }
 }
 
+// updates the filters with the new_text and hides/shows processes accordingly by returning a SearchEngineUpdateResult
 SearchEngineUpdateResult SearchEngine::updateSearch(const std::wstring& new_text) {
     if(new_text == current_filters.current_text) {
         _RDEBUG("[SearchEngine] updateSearch called with no changes!");
         return {};
     }
 
-    auto old_text = std::move(current_filters.current_text); 
+    // keep track of previous search for now
+    auto old_text = std::move(current_filters.current_text);
+
+    // make a new FilterGroup with this text
     current_filters = std::move(FilterGroup(new_text, regex));
 
+    // hide all processes if an invalid search is present
     if(current_filters.ungrouped.size() > 1) {
         _RDEBUG("[SearchEngine] Hiding all processes because of multiple ungrouped strings!");
-        // todo update maps
         hidden.merge(visible); 
         if(!visible.empty()) {
             _RERR("[SearchEngine] Merging processes into hidden didn't capture all processes because there were duplicates in visible!");
@@ -44,9 +51,9 @@ SearchEngineUpdateResult SearchEngine::updateSearch(const std::wstring& new_text
         return { SearchEngineResultFlags::HIDE_ALL };
     }
 
+    // if going from a search text with some length to an empty string, show all processes
     if(isTransitionToShowAll(old_text)) {
         _RDEBUG("[SearchEngine] Transitioning to showing all processes!");
-        // todo update maps
         visible.merge(hidden);
         if(!hidden.empty()) {
             _RERR("[SearchEngine] Merging processes into hidden didn't capture all processes because there were duplicates in hidden!");
@@ -56,6 +63,7 @@ SearchEngineUpdateResult SearchEngine::updateSearch(const std::wstring& new_text
 
     auto result = SearchEngineUpdateResult{};
 
+    // check the smaller group of processes for changes first
     auto visible_bigger = visible.size() > hidden.size();
     visible_bigger ? processVector(hidden, visible, &SearchEngine::shouldShowProcess,
                                    result.to_show, result.flags, SHOW_SUBSET, SHOW_ALL, current_filters) :
@@ -70,6 +78,7 @@ SearchEngineUpdateResult SearchEngine::updateSearch(const std::wstring& new_text
     return result;
 }
 
+// returns true if the given ProcessInfo should be hidden
 bool SearchEngine::shouldHideProcess(std::shared_ptr<ProcessInfo> process, const FilterGroup& filters) {
     return !shouldShowProcess(process, filters);
 }
@@ -111,18 +120,20 @@ bool SearchEngine::shouldShowProcess(std::shared_ptr<ProcessInfo> process, const
     return true;
 }
 
+// Returns true if the old_text is not empty but the current_text is empty
 bool SearchEngine::isTransitionToShowAll(const std::wstring& old_text) {
     return current_filters.current_text.empty() && !old_text.empty();
 }
 
-// should also change process.hidden as needed
+// Moves a PID,ProcessInfo pair from the src map to the dest map (from visible to hidden or vice versa) and sets its hidden flag accordingly
 void SearchEngine::swapMaps(SEProcessMap::iterator it_pair, SEProcessMap& src, SEProcessMap& dest) {
-    auto process = it_pair->second; // might be able to std::move this (TODO use extract)
+    auto process = it_pair->second;
     src.erase(it_pair);
     auto inserted = dest.insert_or_assign(process->pid, process);
     inserted.first->second->hidden = &dest == &hidden;
 }
 
+// Searches through search_vec to see if it should be moved to the swap_vec with the given predicate (shouldShow or shouldHide), and assigns the result flag accordingly.
 void SearchEngine::processVector(SEProcessMap& search_vec,
                                  SEProcessMap& swap_vec,
                                  bool(SearchEngine::* predicate)(std::shared_ptr<ProcessInfo>, const FilterGroup& filters),
@@ -154,6 +165,7 @@ void SearchEngine::processVector(SEProcessMap& search_vec,
     if(search_vec.empty()) flag = all_flag;
 }
 
+// extracts substrings to use as filters for processes
 FilterGroup::FilterGroup(const std::wstring& text, const std::wregex& regex)  {
     for(std::wsregex_iterator it(text.begin(), text.end(), regex), end; it != end; ++it) {
         const auto& m = *it;

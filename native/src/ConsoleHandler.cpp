@@ -1,6 +1,7 @@
 #include "ConsoleHandler.h"
 #include "Logger.h"
 
+// Redirects all logging to the same console window.
 bool ConsoleHandler::OnConsoleMessage(CefRefPtr<CefBrowser> browser, cef_log_severity_t level, const CefString& message, const CefString& source, int line) {
     switch(level) {
         case LOGSEVERITY_DEFAULT:

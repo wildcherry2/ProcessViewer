@@ -4,12 +4,12 @@
 
 #ifdef WIN32
 
+// Enable support for text color in the terminal in Windows
 void EnableConsoleColors() {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut == INVALID_HANDLE_VALUE)
         return;
 
-    // Enable virtual terminal processing for ANSI codes
     DWORD dwMode = 0;
     if (GetConsoleMode(hOut, &dwMode)) {
         dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
@@ -17,6 +17,7 @@ void EnableConsoleColors() {
     }
 }
 
+// Main signature for Windows
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     CefMainArgs main_args(GetModuleHandle(NULL));
     #ifdef _DEBUG
@@ -30,8 +31,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     EnableConsoleColors();
     #endif
 #else
+
+// Main signature for non-Windows platforms
 int main(int argc, char** argv) {
     CefMainArgs main_args(argc, argv);
+
 #endif
     CefRefPtr<PMApp> app(new PMApp());
     int exit_code = CefExecuteProcess(main_args, app, nullptr);
@@ -43,8 +47,8 @@ int main(int argc, char** argv) {
     settings.no_sandbox = true;
     settings.log_severity = LOGSEVERITY_ERROR;
     
-    CefString(&settings.resources_dir_path).FromWString(pwd.wstring()); // may not have worked bc of project settings
-    CefString(&settings.locales_dir_path).FromWString((pwd / "locales").wstring()); // also check hanging pointers in virtual getters
+    CefString(&settings.resources_dir_path).FromWString(pwd.wstring());
+    CefString(&settings.locales_dir_path).FromWString((pwd / "locales").wstring());
     CefString(&settings.locale).FromWString(L"en-US");
     CefInitialize(main_args, settings, app, nullptr);
     CefRunMessageLoop();

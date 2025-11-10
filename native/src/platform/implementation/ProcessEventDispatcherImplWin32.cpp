@@ -45,6 +45,7 @@ VOID CALLBACK StaticOnTitleChange(HWINEVENTHOOK hWinEventHook, DWORD event, HWND
 void TitleThreadMain();
 
 struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatform {
+    // Set up ETW and privileges
     ProcessEventDispatcherImplWin32() : IProcessEventDispatcherImplPlatform() {
         log_file.LoggerName = const_cast<LPWSTR>(session_name);
         log_file.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
@@ -63,7 +64,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
         HANDLE hToken;
         TOKEN_PRIVILEGES tp;
         LUID luid;
-        // might not be needed
+        
         OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken);
         LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid);
         tp.PrivilegeCount = 1;
@@ -73,6 +74,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
         CloseHandle(hToken);
     }
     
+    // Stop listening and free allocated memory
     ~ProcessEventDispatcherImplWin32() override {
         IProcessEventDispatcherImplPlatform::~IProcessEventDispatcherImplPlatform();
         stopListening();
@@ -85,12 +87,14 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             return {};
         }
 
+        // Try to get the icon at the executable path.
         HICON icon = nullptr;
         if(ExtractIconExW(path.c_str(), 0, &icon, nullptr, 1) == 0 || !icon) {
             _RERR("[ProcessEventDispatcherImplWin32] Failed to get exe icon for pid ", pid, " because ExtractIconExW failed!");
             return {};
         }
 
+        // Try to get the ICONINFO from the icon handle
         ICONINFO icon_info = {};
         if(!GetIconInfo(icon, &icon_info)) {
             _RERR("[ProcessEventDispatcherImplWin32] Failed to get exe icon for pid ", pid, " because GetIconInfo failed!");
@@ -98,6 +102,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             return {};
         }
 
+        // Try to get the bitmap from the ICONINFO
         BITMAP bitmap = {};
         if(!GetObject(icon_info.hbmColor, sizeof(BITMAP), &bitmap)) {
             _RERR("[ProcessEventDispatcherImplWin32] Failed to get exe icon for pid ", pid, " because GetObject failed!");
@@ -105,6 +110,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             return {};
         }
 
+        // Initialize BITMAPINFO for getting the raw bytes
         BITMAPINFO bmi = {};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
         bmi.bmiHeader.biWidth = bitmap.bmWidth;
@@ -113,6 +119,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
 
+        // Vector for raw bytes; must hold width*height*4 bytes (width*height pixels that are 4 bytes each)
         std::vector<uint8_t> pixels(bitmap.bmWidth * bitmap.bmHeight * 4);
         HDC hdc = GetDC(NULL);
         if(!hdc) {
@@ -120,6 +127,8 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             DestroyIcon(icon);
             return {};
         }
+
+        // Read the raw bytes into the vector
         auto getbits_result = GetDIBits(hdc, icon_info.hbmColor, 0, bitmap.bmHeight, pixels.data(), &bmi, DIB_RGB_COLORS);
         if(!getbits_result || getbits_result == ERROR_INVALID_PARAMETER) {
             _RERR("[ProcessEventDispatcherImplWin32] Failed to get exe icon for pid ", pid, " because GetDIBits failed with return value ", getbits_result, "!");
@@ -134,10 +143,12 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             return {};
         }
 
+        // Windows returns BGRA but stbi expects RGBA ordering
         for (size_t i = 0; i < pixels.size(); i += 4) {
             std::swap(pixels[i], pixels[i + 2]); // swap B <-> R
         }
 
+        // Convert bitmap to png
         std::vector<uint8_t> png;
         if(!stbi_write_png_to_func(
             [](void* ctx, void* data, int size) {
@@ -151,6 +162,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             // no need to early out since we have to destroy objects anyways and png is empty
         }
 
+        // Release resources and return the png
         DestroyIcon(icon);
         DeleteObject(icon_info.hbmColor);
         DeleteObject(icon_info.hbmMask);
@@ -162,6 +174,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
     }
     
     void startListening() override {
+        // Throw if already listening or enqueue callback not set
         if(etw_pump.joinable()) {
             throw std::runtime_error("[ProcessEventDispatcherImplWin32] Shouldn't be calling startListening twice!");
         }
@@ -170,6 +183,7 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             throw std::runtime_error("[ProcessEventDispatcherImplWin32] Callback must be set before starting to listen!");
         }
         
+        // Open the ETW trace, if needed
         auto status = StartTraceW(&session_handle, session_name, props);
         if(status != ERROR_SUCCESS && status != ERROR_ALREADY_EXISTS) {
             throw std::runtime_error("[ProcessEventDispatcherImplWin32] Failed to start trace session!");
@@ -200,15 +214,20 @@ struct ProcessEventDispatcherImplWin32 : public IProcessEventDispatcherImplPlatf
             throw std::runtime_error("[ProcessEventDispatcherImplWin32] Failed to open trace!");
         }
         
+        // Initialize icon cache
         if(!icon_cache) {
             icon_cache = std::make_shared<IconCache>(instance);
         }
 
+        // Start ETW thread
         etw_pump = std::thread([this] () {
             ProcessTrace(&trace_handle, 1, 0, 0);
         });
 
+        // Start title listener thread
         title_msg_pump = std::thread(TitleThreadMain);
+
+        // Start dark mode watcher
         dark_mode_watcher = std::jthread(dark_mode_callback);
     }
 

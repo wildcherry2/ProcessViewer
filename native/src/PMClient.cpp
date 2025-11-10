@@ -10,6 +10,7 @@ CefRefPtr<CefRequestHandler> PMClient::GetRequestHandler() {
     return request_handler;
 }
 
+// 'display_handler' is the ConsoleHandler
 CefRefPtr<CefDisplayHandler> PMClient::GetDisplayHandler() {
     return display_handler;
 }

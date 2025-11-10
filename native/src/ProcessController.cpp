@@ -22,13 +22,16 @@
 extern std::shared_ptr<IProcessEventDispatcherImplPlatform> getPlatformImpl();
 
 struct ProcessController::Impl {
+    // Sets the platform's update callback to enqueue updates in the ConcurrentQueue
     Impl() {
         platform->setCallback([this](const ProcessInfoUpdate& update) {
             update_queue.enqueue(update);
         });
     }
 
-    void startMonitoring(CefRefPtr<CefV8Context> context) { //assumes context has been entered and this is being called in the render thread
+    // Exposes bound objects in JS and starts up platform-specific monitoring threads and the update thread
+    void startMonitoring(CefRefPtr<CefV8Context> context) {
+        // Sanity checks
         CEF_REQUIRE_RENDERER_THREAD();
         if(!context) {
             _RERR("[ProcessController] Can't start monitoring with a null context!");
@@ -48,6 +51,8 @@ struct ProcessController::Impl {
             _RERR("[ProcessController] Can't start monitoring because the global object doesn't exist!");
             return;
         }
+
+        // Bind C++ to JS in NProcessController
         if(!global->HasValue("NProcessController")) {
             auto obj_binding = CefV8Value::CreateObject(nullptr, nullptr);
             cef_v8_propertyattribute_t flags = static_cast<cef_v8_propertyattribute_t>(V8_PROPERTY_ATTRIBUTE_READONLY | V8_PROPERTY_ATTRIBUTE_DONTDELETE);
@@ -69,11 +74,12 @@ struct ProcessController::Impl {
             _RWARN("[ProcessController] Native object appears to alreay be bound to the global object!");
         }
         
+        // Start platform-specific monitoring and update thread
         platform->startListening();
-
         update_thread = std::jthread(update_callback);
     }
 
+    // Stops all monitoring and releases references to JS objects
     void stopMonitoring() {
         CEF_REQUIRE_RENDERER_THREAD();
         _RDEBUG("[ProcessController] Attempting to stop...");
@@ -89,11 +95,13 @@ struct ProcessController::Impl {
         _RDEBUG("[ProcessController] Stopped monitoring threads!");
     }
 
+    // Exposes platform-specific dark mode getter.
     bool systemPrefersDarkMode() { return platform->systemPrefersDarkMode(); }
 
 private:
+    // Initializes the UI-related data and continually pushes updates from other monitoring threads to JS after preprocessing.
     std::function<void(std::stop_token)> update_callback = [this](std::stop_token stop_token) {
-        std::map<unsigned long, std::shared_ptr<ProcessInfo>> processes; // maybe change value type to pointer?
+        std::map<unsigned long, std::shared_ptr<ProcessInfo>> processes;
         std::map<unsigned long, std::shared_ptr<ProcessTitleUpdateData>> pending_title_updates;
         std::vector<ProcessInfoUpdate> batch;
         batch.reserve(300);
@@ -130,6 +138,7 @@ private:
                     case EProcessInfoEvent::UNKNOWN: {
                         continue;
                     }
+                    // adds process to internal map and search engine, while also applying the most up-to-date title
                     case EProcessInfoEvent::PROCESS_ADDED: {
                         auto data = std::reinterpret_pointer_cast<ProcessInfo>(update.data);
                         processes.insert_or_assign(data->pid, data);
@@ -140,12 +149,15 @@ private:
                         search_engine.addProcess(data);
                         break;
                     }
+                    // removes process from internal map and search engine
                     case EProcessInfoEvent::PROCESS_REMOVED: {
                         auto data = std::reinterpret_pointer_cast<unsigned long>(update.data);
                         processes.erase(*data);
                         search_engine.removeProcess(*data); 
                         break;
                     }
+                    // Updates the title for a process, if it exists in the map and it's the latest title. 
+                    // If it doesn't exist yet (out of order events), then it'll hold on to it and get added in PROCESS_ADDED (which is guaranteed to be called for the pid)
                     case EProcessInfoEvent::PROCESS_TITLEUPDATE: {
                         auto data = std::reinterpret_pointer_cast<ProcessTitleUpdateData>(update.data);
                         auto process = processes.find(data->pid);
@@ -155,7 +167,6 @@ private:
                             if(pending_update != pending_title_updates.end()) {
                                 if(pending_update->second->time < data->time) {
                                     pending_title_updates.insert_or_assign(data->pid, data);
-                                    // todo log
                                 }
                             }
                             else {
@@ -172,6 +183,8 @@ private:
                         }
                         break;
                     }
+
+                    // JS -> C++ invocation; kills a process.
                     case EProcessInfoEvent::CONTROL_TERMINATE: {
                         send_to_js = false;
                         auto data = std::reinterpret_pointer_cast<ProcessInfo>(update.data);
@@ -182,6 +195,8 @@ private:
                         }
                         break;
                     }
+                    
+                    // JS -> C++ invocation; updates the search engine text and 'replies' by telling JS which processes to show or hide.
                     case EProcessInfoEvent::CONTROL_UPDATE_SEARCH: {
                         auto data = std::reinterpret_pointer_cast<std::wstring>(update.data);
                         _RDEBUGW(L"[ProcessController] Update search: ", *data);
@@ -215,7 +230,7 @@ private:
                         break;
                     }
                     default: {
-                        break; //todo log
+                        break;
                     }
                 }
                 
@@ -231,10 +246,12 @@ private:
         }
     };
 
+    // Send a moved batch of updates to JS
     void sendUpdateToJS(std::vector<ProcessInfoUpdate>&& batch) {
         CefPostTask(TID_RENDERER, base::BindOnce(&ProcessController::Impl::execUpdate, base::Unretained(this), std::move(batch)));
     }
 
+    // Render thread function to send the batch of updates to JS
     void execUpdate(std::vector<ProcessInfoUpdate>&& batch) {
         CEF_REQUIRE_RENDERER_THREAD();
 
@@ -248,6 +265,7 @@ private:
             return;
         }
 
+        // Get the <table> if needed
         if(!table) {
             auto global = ctx->GetGlobal();
             if(!global) {
@@ -268,6 +286,7 @@ private:
 
         CefV8ValueList args;
 
+        // Serialize each update to V8 values
         for(auto& update : batch) {
             auto out = CefV8Value::CreateObject(nullptr, nullptr);
             out->SetValue("event", CefV8Value::CreateUInt(static_cast<uint32_t>(update.event)), V8_PROPERTY_ATTRIBUTE_NONE);
@@ -313,7 +332,7 @@ private:
                     auto update_data = std::reinterpret_pointer_cast<ProcessTitleUpdateData>(update.data);
                     auto js_data = CefV8Value::CreateObject(nullptr, nullptr);
                     js_data->SetValue("pid", CefV8Value::CreateUInt(update_data->pid), V8_PROPERTY_ATTRIBUTE_NONE);
-                    js_data->SetValue("title", CefV8Value::CreateString(update_data->title ? *(update_data->title) : StringPrefix""), V8_PROPERTY_ATTRIBUTE_NONE);
+                    js_data->SetValue("title", CefV8Value::CreateString(update_data->title ? *(update_data->title) : L""), V8_PROPERTY_ATTRIBUTE_NONE);
                     out->SetValue("data", js_data, V8_PROPERTY_ATTRIBUTE_NONE);
                     break;
                 }
@@ -330,6 +349,7 @@ private:
             args.push_back(out);
         }
 
+        // Invoke the JS function if at least 1 update from the batch was serialized into arguments
         if(!args.empty()) {
             update_fn->ExecuteFunction(table, args);
             _RDEBUG("[ProcessController] Pushed ", args.size(), " updates to JS!");
@@ -343,11 +363,13 @@ private:
         }
     }
 
+    // signalJSReady(): void
     bool signalJSReady() {
         js_latch.count_down();
         return true;
     }
 
+    // signalTableHasElements(): void
     bool signalTableHasElements() {
         update_complete_latch.count_down();
         return true;

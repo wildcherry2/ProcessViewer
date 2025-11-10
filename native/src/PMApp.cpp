@@ -13,6 +13,7 @@ CefRefPtr<CefRenderProcessHandler> PMApp::GetRenderProcessHandler() {
     return this;
 }
 
+// (UI Thread) Initializes custom schema handler and creates the browser.
 void PMApp::OnContextInitialized() {
     CEF_REQUIRE_UI_THREAD();
     CefBrowserSettings browser_settings;
@@ -24,32 +25,28 @@ void PMApp::OnContextInitialized() {
     CefBrowserHost::CreateBrowser(window_info, new PMClient(), html, browser_settings, nullptr, nullptr);
 }
 
+// (Renderer Thread) Initializes the ProcessController singleton.
 void PMApp::OnContextCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefRefPtr<CefV8Context> context) {
-    ProcessController::getInstance()->startMonitoring(context); // need to discriminate between different browser instances (dev tools, popups, etc)
+    CEF_REQUIRE_RENDERER_THREAD();
+    ProcessController::getInstance()->startMonitoring(context);
 }
 
+// Informs the passed in registrar about the custom schema.
 void PMApp::OnRegisterCustomSchemes(CefRawPtr<CefSchemeRegistrar> registrar) {
     registrar->AddCustomScheme(SCHEMA, CEF_SCHEME_OPTION_STANDARD | CEF_SCHEME_OPTION_LOCAL | CEF_SCHEME_OPTION_SECURE | CEF_SCHEME_OPTION_FETCH_ENABLED);
 }
 
+// (Renderer Thread) Stops monitoring for process changes when the browser is destroyed.
 void PMApp::OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_RENDERER_THREAD();
     ProcessController::getInstance()->stopMonitoring();
 }
 
-void PMApp::OnBeforeCommandLineProcessing(const CefString& process_type, CefRefPtr<CefCommandLine> command_line)  {
-        // Enable GPU acceleration
-        /*command_line->AppendSwitch("enable-gpu");
-        command_line->AppendSwitch("enable-gpu-compositing");*/
-        //command_line->AppendSwitch("--show-fps-counter");
-        // Optional: force WebGL or accelerated 2D canvas
-        //command_line->AppendSwitch("ignore-gpu-blacklist");
-    }
-
 CefRefPtr<CefLoadHandler> PMApp::GetLoadHandler() {
     return this;
 }
 
+// (Renderer Thread) Once the document is loaded, sets up dark mode if the system has it enabled (media queries are disabled in CEF).
 void PMApp::OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, int httpStatusCode) {
     CEF_REQUIRE_RENDERER_THREAD();
     if(!frame->IsMain()) return;
