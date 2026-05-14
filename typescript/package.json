@@ -6,7 +6,8 @@
   "scripts": {
     "build": "webpack --env production --env enablelogging",
     "start": "webpack serve --env enablelogging",
-    "buildnolog": "webpack --env production"
+    "buildnolog": "webpack --env production",
+    "buildmock": "webpack --env mock"
   },
   "keywords": [],
   "author": "",

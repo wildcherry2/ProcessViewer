@@ -4,11 +4,12 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const webpack = require('webpack');
 
-module.exports = (env: any) => {
-    const env_mode = env.production ? 'production' : 'development';
-    const out_path = path.resolve(__dirname, env_mode === 'production' ? 'dist' : 'develop');
-    console.log(`Building in ${env_mode} mode...`);
-    console.log(`./tsconfig.${env_mode}.json`)
+module.exports = (env: any = {}) => {
+    const app_mode = env.production ? 'production' : 'development';
+    const bundle_mode = env.production || env.mock ? 'production' : 'development';
+    const out_path = path.resolve(__dirname, app_mode === 'production' ? 'dist' : 'develop');
+    console.log(`Building ${app_mode} app in ${bundle_mode} bundle mode...`);
+    console.log(`./tsconfig.${bundle_mode}.json`)
     return {
             entry: './src/index.ts', // Entry point of your TypeScript application
             output: {
@@ -25,10 +26,10 @@ module.exports = (env: any) => {
                     path.resolve(__dirname, 'node_modules/@awesome.me/webawesome/dist')
                 ),
                 new webpack.DefinePlugin({
-                    'BUILD_MODE': JSON.stringify(env_mode),
+                    'BUILD_MODE': JSON.stringify(app_mode),
                     'ENABLE_LOGGING': JSON.stringify(!!env.enablelogging)
                 }),
-                ...(env_mode === 'production' ? [new MiniCssExtractPlugin({ filename: 'bundle.min.css' })] : []),
+                ...(bundle_mode === 'production' ? [new MiniCssExtractPlugin({ filename: 'bundle.min.css' })] : []),
             ],
             resolve: {
                 extensions: ['.ts', '.js'], // Resolve these file extensions when importing
@@ -41,7 +42,7 @@ module.exports = (env: any) => {
                         {
                             loader: 'ts-loader',
                             options: {
-                                configFile: path.resolve(__dirname, `./tsconfig.${env_mode}.json`) 
+                                configFile: path.resolve(__dirname, `./tsconfig.${bundle_mode}.json`) 
                             }
                         }
                     ],
@@ -49,7 +50,7 @@ module.exports = (env: any) => {
                 },
                 {
                     test: /\.css$/, // Apply this rule to .css files
-                    use: [env_mode === 'production' ? MiniCssExtractPlugin.loader : 'style-loader', 'css-loader'], // Use css-loader then style-loader
+                    use: [bundle_mode === 'production' ? MiniCssExtractPlugin.loader : 'style-loader', 'css-loader'], // Use css-loader then style-loader
                 },
                 {
                     test: /\.(png|jpe?g|gif|svg)$/i, // Match common image file types
@@ -66,15 +67,15 @@ module.exports = (env: any) => {
                 }
                 ],
             },
-            mode: env_mode, // Set Webpack mode (development or production),
-            devtool: env_mode === 'development' ? 'source-map' : undefined,
+            mode: bundle_mode, // Set Webpack bundling mode (development or production),
+            devtool: bundle_mode === 'development' ? 'source-map' : undefined,
             devServer: {
                 static: out_path, // Serve static files from the 'dist' directory
                 port: 3000, // Serve the app on http://localhost:3000
                 open: true, // Automatically open the browser when the server starts
             },
             optimization: {
-                minimize: env_mode === 'production',
+                minimize: bundle_mode === 'production',
                 minimizer: [
                     '...', // keep the default JS minimizer
                     new CssMinimizerPlugin()
