@@ -4,26 +4,29 @@ import { customElement, property, query } from "lit/decorators.js";
 import './NativeButton'
 import '@awesome.me/webawesome/dist/components/checkbox/checkbox.js'
 
-import type WaCheckbox from "@awesome.me/webawesome/dist/components/checkbox/checkbox.js";
 import type { ProcessInfo, PTSelectionChangedEvent } from "../types";
 import type { NativeButton } from "./NativeButton";
 
+// The control bar below the process table that contains buttons for actions that can be taken on the selected process.
+// For ProcessViewer, this is just the "End Process" button.
 @customElement('pt-control')
 export class PTControl extends LitElement {
+    // Listen for selection change events from the process table to know which process is currently selected, 
+    // and enable/disable buttons accordingly.
     connectedCallback(): void {
         super.connectedCallback();
         document.addEventListener('pt-selection-changed', this._onSelectionChanged);
     }
 
+    // Clean up event listener when the element is removed from the DOM.
     disconnectedCallback(): void {
         super.disconnectedCallback();
         document.removeEventListener('pt-selection-changed', this._onSelectionChanged);
     }
 
-    protected override render() { //might need to normalize button lengths, and hide end task if nothing is selected, and figure out what to do with dll text
+    protected override render() {
         return html`
             <div class="left">
-                
             </div>
             <div class="right">
                 <native-button id="end_process_btn" class="primary disabled" @click="${this._onEndTask}">End Process</native-button>
@@ -34,11 +37,15 @@ export class PTControl extends LitElement {
     @query('#end_process_btn', true)
     accessor _btn_end_process!: NativeButton;
 
+    // Click handler for the "End Process" button that calls the native controller's endTask method with the PID and name of 
+    // the currently selected process.
     private _onEndTask(_event: MouseEvent) {
         if(!this._selection) return;
         NProcessController.endTask(this._selection.pid, this._selection.name);
     }
 
+    // Event handler for when the selected process in the table changes. 
+    // Updates the _selection field and enables/disables buttons as necessary.
     private readonly _onSelectionChanged = (event: PTSelectionChangedEvent) => {
         this._selection = event.detail.new_selection;
         if(this._selection) {
@@ -49,7 +56,7 @@ export class PTControl extends LitElement {
         }
     }
 
-    private _selection?: ProcessInfo; // make @state and link to disabled classes?
+    private _selection?: ProcessInfo;
 
     static styles = css`
         :host {

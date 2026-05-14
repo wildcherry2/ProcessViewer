@@ -4,8 +4,12 @@ import { repeat } from "lit/directives/repeat.js"
 import { ref } from 'lit/directives/ref.js';
 import { AnyProcessInfoUpdate, ProcessInfoEvent, ProcessInfo, PTSelectionChangedEventDetails, PTSelectionChangedEvent } from "../types";
 
+// Process table element that displays the list of processes and their information.
+// Singleton element that is exposed as the global PTable for the native side to interact with.
 @customElement("process-table")
 export class ProcessTable extends LitElement {
+    // Called by the native side to send a series of updates to the process list. 
+    // This is the main way that the native side communicates changes to the process list to the UI.
     updateTable(...updates: AnyProcessInfoUpdate[]) {
         let dirty = false;
         let added = false;
@@ -13,7 +17,7 @@ export class ProcessTable extends LitElement {
             switch(update.event) { 
                 case ProcessInfoEvent.PROCESS_ADDED: {
                     if(this._validateProcessInfo(update.data)) {
-                        // @ts-expect-error
+                        // @ts-expect-error: name_lc is added in-place for sorting purposes, but isn't actually sent from the native side.
                         update.data.name_lc ??= update.data.name.toLocaleLowerCase();
                         this._processes.set(update.data.pid, update.data);
                         LOG(`Updated pid ${update.data.pid}`);
@@ -67,12 +71,18 @@ export class ProcessTable extends LitElement {
                 }
             }
         }
+
+        // If a process was added, try to apply the current sort to it and only request an update if that didn't result in a 
+        // change, since applySort already requests an update if it makes any changes.
         if(added) {
             if(this._applySort()) dirty = false;
         }
+
+        // Request an update if any changes were made that weren't already accounted for by other methods.
         if(dirty) this.requestUpdate('_processes');
     }
 
+    // Helper that asserts that the given processes are shown. Returns whether any changes were made.
     private showRows(...pids: number[]) {
         let shown = 0;
         for(const pid of pids) {
@@ -89,6 +99,7 @@ export class ProcessTable extends LitElement {
         return true;
     }
 
+    // Helper that asserts that all processes are shown.
     private showAllRows() {
         for(const pi of this._processes) {
             pi[1].hidden = false;
@@ -97,6 +108,7 @@ export class ProcessTable extends LitElement {
         //this.requestUpdate('_processes');
     }
 
+    // Helper that asserts that the given processes are hidden. Returns whether any changes were made.
     private hideRows(...pids: number[]) {
         let hidden = 0;
         for(const pid of pids) {
@@ -113,6 +125,7 @@ export class ProcessTable extends LitElement {
         return true;
     }
 
+    // Helper that asserts that all processes are hidden.
     private hideAllRows() {
         for(const pi of this._processes) {
             pi[1].hidden = true;
@@ -126,11 +139,11 @@ export class ProcessTable extends LitElement {
         // @ts-ignore
         globalThis['PTable'] ??= this;
         this.updateComplete.then(() => { 
-            NProcessController.signalJSReady();
             this._on_recv_first_batch = () => { 
                 NProcessController.signalTableHasElements(); 
                 this._on_recv_first_batch = undefined; 
-            }; 
+            };
+            NProcessController.signalJSReady();
         })
     }
 
@@ -169,158 +182,158 @@ export class ProcessTable extends LitElement {
         `;
     }
 
-
+    // Note - commented out styles is necessary for CEF since it doesn't handle certain post-processing effects well.
     static styles = css`
-                        table {
-                            width: 100%;
-                            max-width: 100%;
-                            border-collapse: collapse;
-                            background: var(--neutral-bg);
-                            /* backdrop-filter: blur(var(--backdrop-blur)); */
-                            border-radius: var(--corner-radius);
-                            /* box-shadow: var(--shadow); */
-                            border: 1px solid var(--neutral-border);
-                            font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
-                            font-size: 14px;
-                            color: var(--text-primary);
-                            overflow: visible;
-                            user-select: none;
-                            table-layout: auto;
-                        }
+        table {
+            width: 100%;
+            max-width: 100%;
+            border-collapse: collapse;
+            background: var(--neutral-bg);
+            /* backdrop-filter: blur(var(--backdrop-blur)); */
+            border-radius: var(--corner-radius);
+            /* box-shadow: var(--shadow); */
+            border: 1px solid var(--neutral-border);
+            font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+            font-size: 14px;
+            color: var(--text-primary);
+            overflow: visible;
+            user-select: none;
+            table-layout: auto;
+        }
 
-                        #table-container {
-                            /* max-height: 500px; */ //will need to adjust this later
-                            overflow-y: auto;
-                            width: 100%;
-                            max-width: 100%;
-                        }
+        #table-container {
+            /* max-height: 500px; */ //will need to adjust this later
+            overflow-y: auto;
+            width: 100%;
+            max-width: 100%;
+        }
 
-                        #colgroup-pid {
-                            width: 30ch;
-                        }
+        #colgroup-pid {
+            width: 30ch;
+        }
 
-                        #colgroup-name {
-                            width: auto;
-                            min-width: 0;
-                        }
+        #colgroup-name {
+            width: auto;
+            min-width: 0;
+        }
 
-                        /* enable ellipsis in second column */
-                        thead th:nth-child(2),
-                        tbody td:nth-child(2) {
-                            min-width: 0;
-                            max-width: 1px;
-                        }
+        /* enable ellipsis in second column */
+        thead th:nth-child(2),
+        tbody td:nth-child(2) {
+            min-width: 0;
+            max-width: 1px;
+        }
 
-                        thead {
-                            background: var(--neutral-bg-alt);
-                            position: sticky; 
-                            top: -0.17px; /* this sort of works to fix the chromium bug */
-                            z-index: 5;
-                        }
+        thead {
+            background: var(--neutral-bg-alt);
+            position: sticky; 
+            top: -0.17px; /* this sort of works to fix the chromium bug */
+            z-index: 5;
+        }
 
-                        th, td {
-                            padding: var(--row-padding);
-                            white-space: nowrap;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                        }
+        th, td {
+            padding: var(--row-padding);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-                        th {
-                            text-align: left;
-                            font-weight: 600;
-                            color: var(--text-secondary);
-                            border-bottom: 1px solid var(--neutral-border);
-                            cursor: pointer;
-                            transition: background-color 0.15s ease/* , box-shadow 0.15s ease */;
-                        }
+        th {
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--neutral-border);
+            cursor: pointer;
+            transition: background-color 0.15s ease/* , box-shadow 0.15s ease */;
+        }
 
-                        th:hover {
-                            background: var(--neutral-hover);
-                        }
+        th:hover {
+            background: var(--neutral-hover);
+        }
 
-                        th:active {
-                            background: var(--neutral-hover);
-                            /* box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1); */
-                        }
+        th:active {
+            background: var(--neutral-hover);
+            /* box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1); */
+        }
 
-                        .header svg {
-                            visibility: hidden;
-                            grid-column: 2;
-                            justify-self: center;
-                            transition: transform 0.15s ease;
-                        }
+        .header svg {
+            visibility: hidden;
+            grid-column: 2;
+            justify-self: center;
+            transition: transform 0.15s ease;
+        }
 
-                        .header[sort="asc"] svg,
-                        .header[sort="dsc"] svg {
-                            visibility: visible;
-                        }
+        .header[sort="asc"] svg,
+        .header[sort="dsc"] svg {
+            visibility: visible;
+        }
 
-                        .header[sort="dsc"] svg {
-                            transform: rotate(180deg);
-                        }
+        .header[sort="dsc"] svg {
+            transform: rotate(180deg);
+        }
 
-                        .header-container {
-                            display: grid;
-                            grid-template-columns: 1fr auto 1fr;
-                            align-items: center;
-                            width: 100%;
-                        }
+        .header-container {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            width: 100%;
+        }
 
-                        .header-container span {
-                            grid-column: 1;
-                            justify-self: start;
-                            min-width: 0;
-                        }
+        .header-container span {
+            grid-column: 1;
+            justify-self: start;
+            min-width: 0;
+        }
 
-                        tbody tr {
-                            cursor: pointer;
-                            transition: background-color 0.2s ease, color 0.2s ease;
-                        }
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
 
-                        tbody tr:hover {
-                            background: var(--neutral-hover);
-                        }
+        tbody tr:hover {
+            background: var(--neutral-hover);
+        }
 
-                        tbody tr.selected {
-                            background: var(--row-selected-bg);
-                            outline: 1px solid var(--accent-color);
-                            outline-offset: -1px;
-                        }
+        tbody tr.selected {
+            background: var(--row-selected-bg);
+            outline: 1px solid var(--accent-color);
+            outline-offset: -1px;
+        }
 
-                        tbody tr.selected:hover {
-                            background: var(--row-selected-bg-hover);
-                        }
+        tbody tr.selected:hover {
+            background: var(--row-selected-bg-hover);
+        }
 
-                        tbody td {
-                            border-bottom: 1px solid var(--neutral-border);
-                        }
+        tbody td {
+            border-bottom: 1px solid var(--neutral-border);
+        }
 
-                        tbody tr:last-child td {
-                            border-bottom: none;
-                        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
 
-                        tbody tr:focus-within {
-                            outline: 2px solid var(--accent-color);
-                            outline-offset: -2px;
-                        }
+        tbody tr:focus-within {
+            outline: 2px solid var(--accent-color);
+            outline-offset: -2px;
+        }
 
-                        .name-wrapper {
-                            display: block;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            white-space: nowrap;
-                            width: 100%;
-                        }
+        .name-wrapper {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
 
-                        .name-wrapper > svg, .name-wrapper > img {
-                            margin-right: var(--wa-font-size-m);
-                            width: 16px;
-                            height: 16px;
-                        }
+        .name-wrapper > svg, .name-wrapper > img {
+            margin-right: var(--wa-font-size-m);
+            width: 16px;
+            height: 16px;
+        }
 
-                        table.striped tbody tr:nth-child(odd) {
-                            background: rgba(0, 0, 0, 0.02);
-                        }
+        table.striped tbody tr:nth-child(odd) {
+            background: rgba(0, 0, 0, 0.02);
+        }
     `;
 
 
@@ -348,6 +361,8 @@ export class ProcessTable extends LitElement {
             { key: 'name_lc', label: 'Process Name' }
         ]
 
+    // Helper that applies the current sort to the process list based on header selection,
+    // and applies the appropriate styles.
     private _onHeaderClicked(event: MouseEvent) {
         const header = this._findFirstInstanceInPath(HTMLTableCellElement, event);
         if(!header) {
@@ -378,10 +393,12 @@ export class ProcessTable extends LitElement {
         }
     }
 
+    // Helper that selects the process corresponding to the clicked row.
     private _onRowClicked(event: MouseEvent) {
         this._setSelected(this._findFirstInstanceInPath(HTMLTableRowElement, event));
     }
 
+    // Helper that selects the process corresponding to the given HTMLTableRowElement, or deselects if no row is given.
     private _setSelected(row?: HTMLTableRowElement) {
         if(row === this._selected_process?.row) return;
         this._resetSelected();
@@ -389,7 +406,7 @@ export class ProcessTable extends LitElement {
             return this.dispatchEvent(new CustomEvent<PTSelectionChangedEventDetails>('pt-selection-changed', { detail: { new_selection: undefined }, bubbles: true, composed: true }))
         }
 
-        const info = ((row as any).info as unknown as ProcessInfo); //todo handle changes when updateProcess(es) or removeProcess(es) are called or processes are hidden by search, and maybe come up with a way thats more adaptable to more cells
+        const info = ((row as any).info as unknown as ProcessInfo);
 
         if(!info || !this._validateProcessInfo(info)) return;
 
@@ -400,15 +417,16 @@ export class ProcessTable extends LitElement {
         
         row.classList.add('selected');
         this.dispatchEvent(new CustomEvent<PTSelectionChangedEventDetails>('pt-selection-changed', { detail: { new_selection: info }, bubbles: true, composed: true }))
-        // todo log
     }
 
+    // Helper that removes the selected style from the currently selected process and removes it from the field that tracks the selected process.
     private _resetSelected() {
         this._selected_process?.row.classList.remove('selected');
         this._selected_process = undefined;
-        // todo log
     }
 
+    // Helper that validates that the given ProcessInfo has valid values. 
+    // Logs errors for any invalid values and returns whether the info is valid.
     private _validateProcessInfo(info: ProcessInfo) {
         if(!this._validatePID(info.pid)) return false;
         if(info.name.length === 0 || info.name.trim().length === 0) {
@@ -418,6 +436,7 @@ export class ProcessTable extends LitElement {
         return true;
     }
 
+    // Helper that validates that the given PID is valid (greater than or equal to 0).
     private _validatePID(pid: number) {
         if(pid < 0) {
             LOG_ERROR(`Can't update process with PID ${pid} because PIDs must be greater than or equal to 0!`);
@@ -426,6 +445,7 @@ export class ProcessTable extends LitElement {
         return true;
     }
 
+    // Returns a template for a given ProcessInfo for rendering.
     private readonly _getTemplateForInfo = ([pid, info]: [number, ProcessInfo]) => {
         return html`
                     <tr style=${info.hidden ? 'display:none' : ''} title=${info.path} ${ref((element?: any) => { if(element) element.info ??= info; })}>
@@ -436,6 +456,8 @@ export class ProcessTable extends LitElement {
                 `;
     }
 
+    // Helper that finds the first instance of a given constructor in the event's composed path and returns it, 
+    // or returns undefined if no instance is found.
     private _findFirstInstanceInPath<T extends EventTargetConstructor, R extends (InstanceType<T> | undefined)>(type: T, event: Event): R {
         const path = event.composedPath();
         let row: R = undefined as R;
@@ -448,6 +470,7 @@ export class ProcessTable extends LitElement {
         return row;
     }
 
+    // Helper that sorts the process list backing field based on the currently selected header.
     private _applySort() {
         if(!this._sorted_column) return false;
         const key = this._sorted_column.column.getAttribute('key') as Exclude<keyof ProcessInfo, 'image' | 'hidden' | 'path' | 'title'>;

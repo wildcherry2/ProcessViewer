@@ -1,14 +1,16 @@
 import { css, html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 
+// Windows-style button.
 @customElement('native-button')
 export class NativeButton extends LitElement {
-    protected override render() { // figure out :disabled state?
+    protected override render() {
         return html`
             <button id="button"><slot></slot></button>
         `;
     }
 
+    // Note - commented out styles is necessary for CEF since it doesn't handle certain post-processing effects well.
     static styles = css`
         :host {
             display: contents;
